@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>西蒙研究</title>
+  <style>
+    body {
+      font-family: "Noto Sans TC", sans-serif;
+      margin: 0;
+      background: #fafafa;
+      color: #222;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    header {
+      background: #0d6efd;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+    main {
+      flex: 1;
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    .nav {
+      text-align: right;
+      margin-bottom: 1rem;
+    }
+    button, .btn {
+      background: #0d6efd;
+      border: none;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 5px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    button:hover, .btn:hover {
+      background: #0b5ed7;
+    }
+    .article-card {
+      background: white;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    h2 { margin-top: 0; }
+    textarea, input[type="text"] {
+      width: 100%;
+      padding: 0.5rem;
+      margin-bottom: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .comment {
+      background: #f4f4f4;
+      padding: 0.5rem;
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
+    }
+    .tag {
+      display: inline-block;
+      background: #e0e0e0;
+      color: #555;
+      font-size: 0.85rem;
+      padding: 2px 6px;
+      border-radius: 3px;
+      margin-right: 5px;
+    }
+    .tag.clickable:hover {
+      background: #0d6efd;
+      color: white;
+      cursor: pointer;
+    }
+    footer {
+      background: #eee;
+      text-align: center;
+      padding: 1rem;
+      font-size: 0.9rem;
+    }
+    a { color: #0d6efd; }
+    #searchBar {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    #searchBar input {
+      flex: 1;
+    }
+  </style>
+</head>
+<body>
+  <header>西蒙研究</header>
+  <main id="app"></main>
+  <footer>© 2026 西蒙研究 — 使用 localStorage 儲存資料</footer>
+
+  <script>
+    const app = document.getElementById("app");
+
+    function getArticles() {
+      return JSON.parse(localStorage.getItem("articles") || "[]");
+    }
+
+    function saveArticles(articles) {
+      localStorage.setItem("articles", JSON.stringify(articles));
+    }
+
+    function renderHome(searchKeyword = "", filterTag = "") {
+      const articles = getArticles();
+      const filtered = articles.filter(a => {
+        const matchSearch = a.title.includes(searchKeyword) || a.content.includes(searchKeyword);
+        const matchTag = filterTag ? (a.tags?.includes(filterTag)) : true;
+        return matchSearch && matchTag;
+      });
+
+      const uniqueTags = Array.from(new Set(articles.flatMap(a => a.tags || [])));
+
+      app.innerHTML = `
+        <div class='nav'><button onclick="renderNewArticle()">✏️ 發表新文章</button></div>
+        <div id="searchBar">
+          <input type="text" id="searchInput" placeholder="搜尋文章..." value="${searchKeyword}">
+          <button onclick="renderHome(document.getElementById('searchInput').value)">🔍 搜尋</button>
+        </div>
+        ${uniqueTags.length ? `
+          <div style="margin-bottom:1rem;">
+            <b>標籤：</b>
+            ${uniqueTags.map(t => `<span class="tag clickable" onclick="renderHome('', '${t}')">${t}</span>`).join("")}
+          </div>
+        ` : ""}
+        <h2>${filterTag ? `標籤：${filterTag}` : "最新文章"}</h2>
+        ${filtered.length === 0 ? "<p>找不到符合條件的文章。</p>" : ""}
+        ${filtered.map((a, i) => `
+          <div class='article-card'>
+            <h3><a href="#" onclick="renderArticle(${i})">${a.title}</a></h3>
+            <p>${a.content.slice(0,100)}${a.content.length>100?"...":""}</p>
+            ${a.tags?.length ? a.tags.map(t=>`<span class="tag">${t}</span>`).join("") : ""}
+            <div><small>留言 ${a.comments?.length || 0} 則</small></div>
+          </div>
+        `).join("")}
+      `;
+    }
+
+    function renderNewArticle() {
+      app.innerHTML = `
+        <div class='nav'><button onclick="renderHome()">← 返回首頁</button></div>
+        <h2>發表新文章</h2>
+        <input type="text" id="newTitle" placeholder="標題" />
+        <textarea id="newContent" rows="6" placeholder="文章內容..."></textarea>
+        <input type="text" id="newTags" placeholder="標籤（以逗號分隔）"/>
+        <button onclick="saveNewArticle()">發表</button>
+      `;
+    }
+
+    function saveNewArticle() {
+      const title = document.getElementById("newTitle").value.trim();
+      const content = document.getElementById("newContent").value.trim();
+      const tags = document.getElementById("newTags").value.split(",").map(t => t.trim()).filter(Boolean);
+      if (!title || !content) return alert("請填寫完整！");
+      const articles = getArticles();
+      articles.unshift({ title, content, tags, comments: [] });
+      saveArticles(articles);
+      renderHome();
+    }
+
+    function renderArticle(index) {
+      const articles = getArticles();
+      const article = articles[index];
+      if (!article) return renderHome();
+      app.innerHTML = `
+        <div class='nav'><button onclick="renderHome()">← 回首頁</button></div>
+        <div class='article-card'>
+          <h2>${article.title}</h2>
+          ${article.tags?.length ? article.tags.map(t=>`<span class="tag clickable" onclick="renderHome('', '${t}')">${t}</span>`).join("") : ""}
+          <p style="margin-top:1rem;">${article.content.replace(/\n/g,"<br>")}</p>
+        </div>
+        <h3>留言區</h3>
+        <div id="comment-list">
+          ${article.comments.map(c => `<div class='comment'><b>${c.name}</b>: ${c.text}</div>`).join("") || "<p>還沒有留言，快來留言吧！</p>"}
+        </div>
+        <h4>發表留言</h4>
+        <input type="text" id="commentName" placeholder="你的名字" />
+        <textarea id="commentText" rows="3" placeholder="留言內容..."></textarea>
+        <button onclick="addComment(${index})">送出留言</button>
+      `;
+    }
+
+    function addComment(index) {
+      const name = document.getElementById("commentName").value.trim() || "匿名";
+      const text = document.getElementById("commentText").value.trim();
+      if (!text) return alert("請輸入留言內容！");
+      const articles = getArticles();
+      articles[index].comments.push({ name, text });
+      saveArticles(articles);
+      renderArticle(index);
+    }
+
+    renderHome();
+  </script>
+</body>
+</html>
